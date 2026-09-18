@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "name": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["email", "role"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "A collection of questions for a test or game",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 100 },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "questions": {
+          "type": "array",
+          "maxLength": 100,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["MC", "TF", "SA"] },
+              "content": { "type": "string", "maxLength": 5000 },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "answer": { "type": "string", "maxLength": 1000 },
+              "timeLimit": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["title", "createdBy", "createdAt", "questions"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "An active or finished class game session",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "status": { "type": "string", "enum": ["WAITING", "ACTIVE", "FINISHED"] },
+        "currentQuestionIndex": { "type": "number" },
+        "questionStartTime": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["quizId", "hostId", "status", "currentQuestionIndex", "createdAt"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "A player in a class session",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "score": { "type": "number" },
+        "answers": { "type": "object" }
+      },
+      "required": ["sessionId", "name", "score"]
+    },
+    "PracticeResult": {
+      "title": "Practice Result",
+      "description": "Result of a self-practice session",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string" },
+        "playerName": { "type": "string", "maxLength": 100 },
+        "playerClass": { "type": "string", "maxLength": 100 },
+        "score": { "type": "number" },
+        "timeSpent": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["quizId", "playerName", "playerClass", "score", "timeSpent", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/Quiz" },
+      "description": "Quizzes created by admins"
+    },
+    "sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Active game sessions"
+    },
+    "sessions/{sessionId}/players/{playerId}": {
+      "schema": { "$ref": "#/entities/Player" },
+      "description": "Players in a session"
+    },
+    "practiceResults/{resultId}": {
+      "schema": { "$ref": "#/entities/PracticeResult" },
+      "description": "Self practice results"
+    },
+    "admins/{userId}": {
+      "schema": "Admin flag",
+      "description": "Admin users"
+    }
+  }
+}

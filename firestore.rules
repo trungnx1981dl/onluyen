@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    match /admins/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['email', 'role']) &&
+          data.email is string && data.email.size() <= 200 &&
+          data.role is string && (data.role == 'admin' || data.role == 'user') &&
+          (!('name' in data) || (data.name is string && data.name.size() <= 100));
+      }
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if true;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming()) && incoming().role == existing().role;
+    }
+
+    match /quizzes/{quizId} {
+      function isValidQuiz(data) {
+        return data.keys().hasAll(['title', 'createdAt', 'questions']) &&
+          data.title is string && data.title.size() <= 200 &&
+          data.createdAt is number &&
+          (!('createdBy' in data) || (data.createdBy is string && data.createdBy.size() <= 128)) &&
+          (!('subject' in data) || (data.subject is string && data.subject.size() <= 100)) &&
+          data.questions is list && data.questions.size() <= 100;
+      }
+      allow read: if true;
+      allow create: if isValidQuiz(incoming());
+      allow update: if isValidQuiz(incoming());
+      allow delete: if true;
+    }
+
+    match /sessions/{sessionId} {
+      function isValidSession(data) {
+        return data.keys().hasAll(['quizId', 'hostId', 'status', 'currentQuestionIndex', 'createdAt']) &&
+          data.quizId is string && data.quizId.size() <= 128 &&
+          data.hostId is string && data.hostId.size() <= 128 &&
+          data.status is string && (data.status == 'WAITING' || data.status == 'ACTIVE' || data.status == 'FINISHED') &&
+          data.currentQuestionIndex is number &&
+          data.createdAt is number &&
+          (!('questions' in data) || (data.questions is list && data.questions.size() <= 100)) &&
+          (!('questionStartTime' in data) || data.questionStartTime is number);
+      }
+      allow read: if true;
+      allow create: if isValidSession(incoming());
+      allow update: if isValidSession(incoming());
+      allow delete: if true;
+
+      match /players/{playerId} {
+        function isValidPlayer(data) {
+          return data.keys().hasAll(['sessionId', 'name', 'score']) &&
+            data.sessionId is string && data.sessionId.size() <= 128 &&
+            data.name is string && data.name.size() <= 100 &&
+            data.score is number &&
+            (!('answers' in data) || data.answers is map);
+        }
+        allow read: if true;
+        allow create: if isValidPlayer(incoming()) && incoming().sessionId == sessionId;
+        allow update: if isValidPlayer(incoming()) && incoming().sessionId == existing().sessionId;
+      }
+    }
+
+    match /practiceResults/{resultId} {
+      function isValidResult(data) {
+        return data.keys().hasAll(['quizId', 'playerName', 'playerClass', 'score', 'timeSpent', 'createdAt']) &&
+          data.quizId is string && data.quizId.size() <= 128 &&
+          data.playerName is string && data.playerName.size() <= 100 &&
+          data.playerClass is string && data.playerClass.size() <= 100 &&
+          data.score is number &&
+          data.timeSpent is number &&
+          data.createdAt is number;
+      }
+      allow create: if isValidResult(incoming());
+      allow read: if true;
+    }
+  }
+}
